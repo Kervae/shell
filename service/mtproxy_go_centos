@@ -56,7 +56,7 @@ do_start(){
 		cd ${FILE}
 		echo -e "${Info} $NAME 启动中..."
 		ulimit -n 51200
-		eval nohup ./mtg simple-run -n 1.1.1.1 -p ${port} 127.0.0.1:3128 ${password} >> "${LOG}" 2>&1 &
+		eval nohup ./mtg simple-run -n 1.1.1.1 -p ${port} 0.0.0.0:${port} ${password} >> "${LOG}" 2>&1 &
 		sleep 2s
 		check_running
 		if [[ $? -eq 0 ]]; then
