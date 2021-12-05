@@ -108,11 +108,10 @@ Download(){
 	fi
 	new_ver=$(wget -qO- https://api.github.com/repos/9seconds/mtg/releases| grep "tag_name"| head -n 1| awk -F ":" '{print $2}'| sed 's/\"//g;s/,//g;s/ //g')
 	[[ -z ${new_ver} ]] && echo -e "${Error} MTProxy 最新版本获取失败！" && exit 1
-	echo -e "${Info} 检测到 MTProxy 最新版本为 [ ${new_ver} ]"
 	wget --no-check-certificate -N "https://github.com/9seconds/mtg/releases/download/${new_ver}/mtg-${new_ver:1}-linux-${bit}.tar.gz"
 	[[ ! -e "mtg-${new_ver:1}-linux-${bit}.tar.gz" ]] && echo -e "${Error} MTProxy 下载失败 !" && rm -rf "${file}" && exit 1
-	tar -xzf mtg-${new_ver:1}-linux-${bit}.tar.gz && cd mtg-${new_ver:1}-linux-${bit} &&  mv "mtg" .. && rm -rf mtg-${new_ver:1}-linux-${bit}
-	cd .. && [[ ! -e "mtg" ]] && echo -e "${Error} MTProxy 移动失败 !" && rm -rf "${file}" && exit 1
+	tar -xzf mtg-${new_ver:1}-linux-${bit}.tar.gz && cd mtg-${new_ver:1}-linux-${bit} &&  mv "mtg" ..
+	cd .. && rm -rf mtg-${new_ver:1}-linux-${bit}* && [[ ! -e "mtg" ]] && echo -e "${Error} MTProxy 移动失败 !" && rm -rf "${file}" && exit 1
 	chmod +x mtg
 	echo "${new_ver}" > ${Now_ver_File}
 }
@@ -144,10 +143,6 @@ Write_config(){
 	cat > ${mtproxy_conf}<<-EOF
 PORT = ${mtp_port}
 PASSWORD = ${mtp_passwd}
-TAG = ${mtp_tag}
-NAT-IPv4 = ${mtp_nat_ipv4}
-NAT-IPv6 = ${mtp_nat_ipv6}
-SECURE = ${mtp_secure}
 EOF
 }
 Read_config(){
@@ -183,71 +178,14 @@ Set_port(){
 Set_passwd(){
 	while true
 		do
-		echo "请输入 MTProxy 密匙（手动输入必须为32位，[0-9][a-z][A-Z]，建议随机生成）"
-		read -e -p "(避免出错，强烈推荐随机生成，直接回车):" mtp_passwd
-		if [[ -z "${mtp_passwd}" ]]; then
-			mtp_passwd=$(date +%s%N | md5sum | head -c 32)
-		else
-			[[ ${#mtp_passwd} != 32 ]] && echo -e "${Error} 请输入正确的密匙（32位字符）。" && continue
-		fi
+		wget --no-check-certificate "https://raw.githubusercontent.com/zelang/shell/main/service/mtg" >/dev/null 2>&1
+		chmod +x mtg
+		mtp_passwd=$(./mtg generate-secret --hex $(date +%s%N | md5sum | head -c 7))
 		echo && echo "========================"
-		echo -e "	密码 : ${Red_background_prefix} dd${mtp_passwd} ${Font_color_suffix}"
+		echo -e "	密码 : ${Red_background_prefix} ${mtp_passwd} ${Font_color_suffix}"
 		echo "========================" && echo
 		break
 	done
-}
-Set_tag(){
-	echo "请输入 MTProxy 的 TAG标签（TAG标签必须是32位，TAG标签只有在通过官方机器人 @MTProxybot 分享代理账号后才会获得，不清楚请留空回车）"
-	read -e -p "(默认：回车跳过):" mtp_tag
-	if [[ ! -z "${mtp_tag}" ]]; then
-		echo && echo "========================"
-		echo -e "	TAG : ${Red_background_prefix} ${mtp_tag} ${Font_color_suffix}"
-		echo "========================" && echo
-	else
-		echo
-	fi
-}
-Set_nat(){
-	echo -e "如果本机是NAT服务器（谷歌云、微软云、阿里云等，网卡绑定的IP为 10.xx.xx.xx 开头的），则需要指定公网 IPv4。"
-	read -e -p "(默认：自动检测 IPv4 地址):" mtp_nat_ipv4
-	if [[ -z "${mtp_nat_ipv4}" ]]; then
-		getipv4
-		if [[ "${ipv4}" == "IPv4_Error" ]]; then
-			mtp_nat_ipv4=""
-		else
-			mtp_nat_ipv4="${ipv4}"
-		fi
-		echo && echo "========================"
-		echo -e "	NAT-IPv4 : ${Red_background_prefix} ${mtp_nat_ipv4} ${Font_color_suffix}"
-		echo "========================" && echo
-	fi
-	echo -e "如果本机是NAT服务器（谷歌云、微软云、阿里云等），则需要指定公网 IPv6。"
-	read -e -p "(默认：自动检测 IPv6 地址):" mtp_nat_ipv6
-	if [[ -z "${mtp_nat_ipv6}" ]]; then
-		getipv6
-		if [[ "${ipv6}" == "IPv6_Error" ]]; then
-			mtp_nat_ipv6=""
-		else
-			mtp_nat_ipv6="${ipv6}"
-		fi
-		echo && echo "========================"
-		echo -e "	NAT-IPv6 : ${Red_background_prefix} ${mtp_nat_ipv6} ${Font_color_suffix}"
-		echo "========================" && echo
-	fi
-}
-Set_secure(){
-	echo -e "是否启用强制安全模式？[Y/n]
-只有启用[安全混淆模式]的客户端才能链接(即密匙头部有 dd 字符)，降低服务器被墙几率，建议开启。"
-	read -e -p "(默认：Y 启用):" mtp_secure
-	[[ -z "${mtp_secure}" ]] && mtp_secure="Y"
-	if [[ "${mtp_secure}" == [Yy] ]]; then
-		mtp_secure="YES"
-	else
-		mtp_secure="NO"
-	fi
-	echo && echo "========================"
-	echo -e "	强制安全模式 : ${Red_background_prefix} ${mtp_secure} ${Font_color_suffix}"
-	echo "========================" && echo
 }
 Set(){
 	check_installed_status
@@ -267,10 +205,6 @@ Set(){
 		Read_config
 		Set_port
 		mtp_passwd=${passwd}
-		mtp_tag=${tag}
-		mtp_nat_ipv4=${nat_ipv4}
-		mtp_nat_ipv6=${nat_ipv6}
-		mtp_secure=${secure}
 		Write_config
 		Del_iptables
 		Add_iptables
@@ -279,10 +213,6 @@ Set(){
 		Read_config
 		Set_passwd
 		mtp_port=${port}
-		mtp_tag=${tag}
-		mtp_nat_ipv4=${nat_ipv4}
-		mtp_nat_ipv6=${nat_ipv6}
-		mtp_secure=${secure}
 		Write_config
 		Restart
 	elif [[ "${mtp_modify}" == "3" ]]; then
@@ -290,9 +220,6 @@ Set(){
 		Set_tag
 		mtp_port=${port}
 		mtp_passwd=${passwd}
-		mtp_nat_ipv4=${nat_ipv4}
-		mtp_nat_ipv6=${nat_ipv6}
-		mtp_secure=${secure}
 		Write_config
 		Restart
 	elif [[ "${mtp_modify}" == "4" ]]; then
@@ -300,8 +227,6 @@ Set(){
 		Set_nat
 		mtp_port=${port}
 		mtp_passwd=${passwd}
-		mtp_tag=${tag}
-		mtp_secure=${secure}
 		Write_config
 		Restart
 	elif [[ "${mtp_modify}" == "5" ]]; then
@@ -309,18 +234,12 @@ Set(){
 		Set_secure
 		mtp_port=${port}
 		mtp_passwd=${passwd}
-		mtp_tag=${tag}
-		mtp_nat_ipv4=${nat_ipv4}
-		mtp_nat_ipv6=${nat_ipv6}
 		Write_config
 		Restart
 	elif [[ "${mtp_modify}" == "6" ]]; then
 		Read_config
 		Set_port
 		Set_passwd
-		Set_tag
-		Set_nat
-		Set_secure
 		Write_config
 		Restart
 	elif [[ "${mtp_modify}" == "7" ]]; then
@@ -337,9 +256,6 @@ Install(){
 	echo -e "${Info} 开始设置 用户配置..."
 	Set_port
 	Set_passwd
-	Set_tag
-	Set_nat
-	Set_secure
 	echo -e "${Info} 开始安装/配置 依赖..."
 	Installation_dependency
 	echo -e "${Info} 开始下载/安装..."
@@ -437,24 +353,16 @@ getipv6(){
 View(){
 	check_installed_status
 	Read_config
-	#getipv4
+	getipv4
 	#getipv6
 	clear && echo
 	echo -e "Mtproto Proxy 用户配置："
 	echo -e "————————————————"
-	echo -e " 地址\t: ${Green_font_prefix}${nat_ipv4}${Font_color_suffix}"
-	[[ ! -z "${nat_ipv6}" ]] && echo -e " 地址\t: ${Green_font_prefix}${nat_ipv6}${Font_color_suffix}"
+	echo -e " 地址\t: ${Green_font_prefix}${ipv4}${Font_color_suffix}"
 	echo -e " 端口\t: ${Green_font_prefix}${port}${Font_color_suffix}"
-	echo -e " 密匙\t: ${Green_font_prefix}dd${passwd}${Font_color_suffix}"
-	[[ ! -z "${tag}" ]] && echo -e " TAG \t: ${Green_font_prefix}${tag}${Font_color_suffix}"
-	echo -e " 链接\t: ${Red_font_prefix}tg://proxy?server=${nat_ipv4}&port=${port}&secret=dd${passwd}${Font_color_suffix}"
-	echo -e " 链接\t: ${Red_font_prefix}https://t.me/proxy?server=${nat_ipv4}&port=${port}&secret=dd${passwd}${Font_color_suffix}"
-	[[ ! -z "${nat_ipv6}" ]] && echo -e " 链接\t: ${Red_font_prefix}tg://proxy?server=${nat_ipv6}&port=${port}&secret=dd${passwd}${Font_color_suffix}"
-	[[ ! -z "${nat_ipv6}" ]] && echo -e " 链接\t: ${Red_font_prefix}https://t.me/proxy?server=${nat_ipv6}&port=${port}&secret=dd${passwd}${Font_color_suffix}"
-	echo
-	echo -e " 强制安全模式\t: ${Green_font_prefix}${secure}${Font_color_suffix}"
-	echo
-	echo -e " ${Red_font_prefix}注意\t:${Font_color_suffix} 密匙头部的 ${Green_font_prefix}dd${Font_color_suffix} 字符是代表客户端启用${Green_font_prefix}安全混淆模式${Font_color_suffix}，可以降低服务器被墙几率。\n     \t  另外，在官方机器人处分享账号获取TAG标签时记得删除，获取TAG标签后分享时可以再加上。"
+	echo -e " 密匙\t: ${Green_font_prefix}${passwd}${Font_color_suffix}"
+	echo -e " 链接\t: ${Red_font_prefix}tg://proxy?server=${ipv4}&port=${port}&secret=${passwd}${Font_color_suffix}"
+	echo -e " 链接\t: ${Red_font_prefix}https://t.me/proxy?server=${ipv4}&port=${port}&secret=${passwd}${Font_color_suffix}"
 }
 View_Log(){
 	check_installed_status
