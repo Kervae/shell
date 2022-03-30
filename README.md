@@ -1,7 +1,18 @@
 # shell
 Some self-use scripts
 
+---
+## mtproxy.sh
 
+- 脚本说明: Mtproto Proxy 一键安装管理脚本
+- 系统支持: CentOS7 / Debian7+ / Ubuntu14+
+
+#### 下载安装:
+``` bash
+wget -N --no-check-certificate https://raw.githubusercontent.com/zelang/shell/main/mtproxy.sh && chmod +x mtproxy.sh && bash mtproxy.sh
+```
+
+---
 ## mtproxy_go.sh
 
 - 脚本说明: Mtproto Proxy Go版 一键安装管理脚本
